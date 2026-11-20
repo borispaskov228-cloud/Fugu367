@@ -32,6 +32,8 @@ $env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-17.0.21.9-hotspot'
 
 Готовый мод: `build\libs\herbcraft-1.0.0.jar`.
 
+Уже собранная версия лежит в репозитории: `releases\herbcraft-1.0.0.jar` — можно сразу класть в `mods`.
+
 ## Установка
 
 1. Установите [Fabric Loader](https://fabricmc.net/use/) для Minecraft 1.20.1.
