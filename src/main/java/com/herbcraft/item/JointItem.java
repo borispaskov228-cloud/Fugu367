@@ -43,6 +43,7 @@ public class JointItem extends Item {
             world.playSound(null, x, y, z, SoundEvents.BLOCK_FIRE_EXTINGUISH,
                     SoundCategory.PLAYERS, 0.35f, 1.4f);
 
+            com.herbcraft.HerbCraftEffects.send(user, type, com.herbcraft.HerbCraftEffects.KIND_JOINT);
             stack.decrement(1);
             user.getItemCooldownManager().set(this, 30);
         }

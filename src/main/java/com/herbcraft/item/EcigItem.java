@@ -1,5 +1,6 @@
 package com.herbcraft.item;
 
+import com.herbcraft.HerbCraftEffects;
 import com.herbcraft.HerbType;
 import net.minecraft.client.item.TooltipContext;
 import net.minecraft.entity.effect.StatusEffectInstance;
@@ -80,6 +81,7 @@ public class EcigItem extends Item {
             world.playSound(null, x, y, z, SoundEvents.BLOCK_FIRE_EXTINGUISH,
                     SoundCategory.PLAYERS, 0.25f, 1.8f);
 
+            HerbCraftEffects.send(user, liquid, HerbCraftEffects.KIND_ECIG);
             nbt.putInt(NBT_CHARGES, charges - 1);
             user.getItemCooldownManager().set(this, 15);
         }

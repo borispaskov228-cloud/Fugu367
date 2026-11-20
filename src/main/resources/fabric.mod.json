@@ -9,7 +9,8 @@
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
-    "main": [ "com.herbcraft.HerbCraft" ]
+    "main": [ "com.herbcraft.HerbCraft" ],
+    "client": [ "com.herbcraft.client.HerbCraftClient" ]
   },
   "mixins": [],
   "depends": {
