@@ -1,4 +1,5 @@
-# Генерирует модели, блокстейты, крафты, лут-таблицы и простые 16x16 текстуры.
+# Генерирует модели, блокстейты, крафты, лут-таблицы и чистые 16x16 текстуры.
+# Текстуры без чёрных контуров: базовый цвет + светлый блик + мягкий цветной оттенок.
 # Запуск: powershell -ExecutionPolicy Bypass -File tools\generate_assets.ps1
 Add-Type -AssemblyName System.Drawing
 
@@ -36,84 +37,116 @@ function New-Texture([string]$path, [scriptblock]$draw) {
     $bmp.Dispose()
 }
 
+# Смешивание канала с белым (блик) или чёрным (мягкий оттенок, не контур).
+function Mix([int]$c, [int]$target, [double]$w) { [int]($c + ($target - $c) * $w) }
+
 foreach ($t in $types) {
     $id = $t.id
     $hex = $t.hex
     $r = [Convert]::ToInt32($hex.Substring(0,2),16)
     $g8 = [Convert]::ToInt32($hex.Substring(2,2),16)
     $b = [Convert]::ToInt32($hex.Substring(4,2),16)
-    $col = [System.Drawing.Color]::FromArgb($r,$g8,$b)
-    $dark = [System.Drawing.Color]::FromArgb([math]::Max(0,$r-60),[math]::Max(0,$g8-60),[math]::Max(0,$b-60))
-    $brush = New-Object System.Drawing.SolidBrush $col
-    $darkBrush = New-Object System.Drawing.SolidBrush $dark
-    $greenBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(70,140,55))
-    $whiteBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(245,240,220))
-    $grayBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(70,70,78))
-    $paperBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(210,190,150))
 
-    # --- Текстура: высушенная трава (семена) ---
+    $col   = [System.Drawing.Color]::FromArgb($r, $g8, $b)
+    $light = [System.Drawing.Color]::FromArgb((Mix $r 255 0.45), (Mix $g8 255 0.45), (Mix $b 255 0.45))
+    $shade = [System.Drawing.Color]::FromArgb((Mix $r 0 0.22), (Mix $g8 0 0.22), (Mix $b 0 0.22))
+
+    $brush = New-Object System.Drawing.SolidBrush $col
+    $lightBrush = New-Object System.Drawing.SolidBrush $light
+    $shadeBrush = New-Object System.Drawing.SolidBrush $shade
+
+    $stemBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(78,150,60))
+    $stemLight = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(112,188,86))
+    $whiteBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(250,250,246))
+    $paperBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(224,207,172))
+    $glassBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(148,170,186))
+    $glassLight = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(208,224,234))
+    $metalBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(202,209,218))
+    $metalLight = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(236,240,244))
+
+    # --- Высушенная трава (семена): рыхлый пучок листьев со светлыми бликами ---
     New-Texture (Join-Path $assets "textures\item\${id}_herb.png") {
         param($g)
-        $g.FillEllipse($brush, 4, 3, 7, 5)
-        $g.FillEllipse($brush, 7, 2, 6, 5)
-        $g.FillEllipse($brush, 3, 7, 6, 5)
-        $g.FillEllipse($darkBrush, 8, 8, 5, 4)
-        $g.FillRectangle($greenBrush, 7, 9, 2, 6)
+        $g.FillEllipse($shadeBrush, 4, 4, 7, 5)
+        $g.FillEllipse($brush, 3, 3, 7, 5)
+        $g.FillEllipse($brush, 7, 2, 6, 6)
+        $g.FillEllipse($brush, 4, 7, 6, 5)
+        $g.FillEllipse($lightBrush, 5, 3, 3, 2)
+        $g.FillEllipse($lightBrush, 8, 3, 2, 2)
+        $g.FillRectangle($stemBrush, 7, 9, 2, 5)
     }
 
-    # --- Текстура: скрутка ---
+    # --- Скрутка: бумага с lighter-полоской, цветной кончик, тлеющий уголёк ---
     New-Texture (Join-Path $assets "textures\item\${id}_joint.png") {
         param($g)
-        $g.FillRectangle($paperBrush, 3, 6, 11, 4)
+        $g.FillRectangle($paperBrush, 3, 6, 10, 4)
+        $g.FillRectangle($whiteBrush, 3, 6, 10, 1)
         $g.FillRectangle($brush, 11, 6, 3, 4)
-        $g.FillRectangle($darkBrush, 3, 6, 2, 4)
+        $g.FillRectangle($lightBrush, 12, 6, 1, 4)
         $g.FillRectangle([System.Drawing.Brushes]::Orange, 2, 7, 1, 2)
+        $g.FillRectangle([System.Drawing.Brushes]::Yellow, 2, 7, 1, 1)
     }
 
-    # --- Текстура: жидкость ---
+    # --- Жидкость: стеклянный флакон с цветной жидкостью и бликом ---
     New-Texture (Join-Path $assets "textures\item\${id}_liquid.png") {
         param($g)
-        $g.FillRectangle($grayBrush, 6, 1, 4, 2)
-        $g.FillRectangle($grayBrush, 5, 3, 6, 12)
-        $g.FillRectangle($brush, 6, 6, 4, 8)
-        $g.FillRectangle($darkBrush, 6, 3, 4, 3)
+        $g.FillRectangle($metalBrush, 6, 1, 4, 2)
+        $g.FillRectangle($metalLight, 6, 1, 4, 1)
+        $g.FillRectangle($glassBrush, 6, 3, 4, 2)
+        $g.FillRectangle($glassBrush, 4, 5, 8, 10)
+        $g.FillRectangle($glassLight, 4, 5, 2, 10)
+        $g.FillRectangle($brush, 5, 8, 6, 6)
+        $g.FillRectangle($lightBrush, 5, 8, 6, 1)
+        $g.FillRectangle($whiteBrush, 10, 6, 1, 4)
     }
 
-    # --- Текстура: вэйп ---
+    # --- Вэйп: металлический корпус, цветное окошко, светодиод и кнопка ---
     New-Texture (Join-Path $assets "textures\item\${id}_ecig.png") {
         param($g)
-        $g.FillRectangle($grayBrush, 6, 1, 4, 2)
-        $g.FillRectangle($grayBrush, 5, 3, 6, 11)
+        $g.FillRectangle($whiteBrush, 6, 0, 4, 3)
+        $g.FillRectangle($metalBrush, 5, 3, 6, 11)
+        $g.FillRectangle($metalLight, 5, 3, 2, 11)
         $g.FillRectangle($brush, 6, 5, 4, 5)
-        $g.FillRectangle($whiteBrush, 6, 13, 4, 2)
+        $g.FillRectangle($lightBrush, 6, 5, 4, 1)
         $g.FillRectangle([System.Drawing.Brushes]::Lime, 7, 2, 2, 1)
+        $g.FillRectangle($glassBrush, 7, 11, 2, 2)
     }
 
-    # --- Текстура: дикий куст ---
+    # --- Дикий куст: зелёный стебель и яркие листья с бликами ---
     New-Texture (Join-Path $assets "textures\block\${id}_wild.png") {
         param($g)
-        $g.FillRectangle($greenBrush, 7, 7, 2, 9)
-        $g.FillEllipse($brush, 3, 3, 7, 6)
+        $g.FillRectangle($stemBrush, 7, 6, 2, 10)
+        $g.FillRectangle($stemLight, 7, 6, 1, 10)
+        $g.FillEllipse($shadeBrush, 3, 3, 7, 6)
+        $g.FillEllipse($brush, 2, 3, 7, 6)
         $g.FillEllipse($brush, 7, 2, 6, 6)
-        $g.FillEllipse($darkBrush, 2, 8, 6, 5)
-        $g.FillEllipse($darkBrush, 9, 8, 5, 5)
+        $g.FillEllipse($brush, 2, 8, 6, 5)
+        $g.FillEllipse($lightBrush, 4, 4, 3, 2)
+        $g.FillEllipse($lightBrush, 8, 3, 2, 2)
     }
 
-    # --- Текстуры: 4 стадии роста культуры ---
+    # --- Четыре стадии роста: стебель + листья, блик на старших стадиях ---
     for ($stage = 0; $stage -le 3; $stage++) {
         $h = 3 + $stage * 3
+        $top = [math]::Max(3, 15 - $h)
         New-Texture (Join-Path $assets "textures\block\${id}_crop_${stage}.png") {
             param($gg)
-            $gg.FillRectangle($greenBrush, 7, [math]::Max(3,15-$h), 2, $h)
-            $gg.FillEllipse($brush, 5, [math]::Max(2,13-$h), 6, 4)
+            $gg.FillRectangle($stemBrush, 7, $top, 2, $h)
+            $gg.FillRectangle($stemLight, 7, $top, 1, $h)
+            $gg.FillEllipse($shadeBrush, 5, [math]::Max(2,13-$h), 6, 4)
+            $gg.FillEllipse($brush, 4, [math]::Max(2,13-$h), 6, 4)
             if ($stage -ge 1) { $gg.FillEllipse($brush, 8, [math]::Max(1,11-$h), 5, 4) }
-            if ($stage -ge 2) { $gg.FillEllipse($darkBrush, 3, [math]::Max(4,12-$h), 5, 4) }
-            if ($stage -ge 3) { $gg.FillEllipse($darkBrush, 9, [math]::Max(5,14-$h), 4, 3) }
+            if ($stage -ge 2) { $gg.FillEllipse($brush, 2, [math]::Max(4,12-$h), 5, 4) }
+            if ($stage -ge 3) {
+                $gg.FillEllipse($brush, 9, [math]::Max(5,14-$h), 4, 3)
+                $gg.FillEllipse($lightBrush, 5, [math]::Max(2,13-$h), 2, 1)
+            }
         }.GetNewClosure()
     }
 
-    $brush.Dispose(); $darkBrush.Dispose(); $greenBrush.Dispose()
-    $whiteBrush.Dispose(); $grayBrush.Dispose(); $paperBrush.Dispose()
+    $brush.Dispose(); $lightBrush.Dispose(); $shadeBrush.Dispose()
+    $stemBrush.Dispose(); $stemLight.Dispose(); $whiteBrush.Dispose(); $paperBrush.Dispose()
+    $glassBrush.Dispose(); $glassLight.Dispose(); $metalBrush.Dispose(); $metalLight.Dispose()
 
     # --- Модели предметов ---
     foreach ($what in @('herb','joint','liquid','ecig')) {
