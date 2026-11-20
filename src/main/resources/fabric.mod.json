@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "herbcraft",
+  "version": "${version}",
+  "name": "HerbCraft",
+  "description": "Пять видов особенной травы: выращивание, скрутки, жидкость для вэйпа и электронные сигареты.",
+  "authors": [ "you" ],
+  "contact": {},
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [ "com.herbcraft.HerbCraft" ]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}

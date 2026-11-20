@@ -1,0 +1,1 @@
+{"pools":[{"entries":[{"functions":[{"function":"minecraft:set_count","count":2}],"name":"herbcraft:rainbow_herb","type":"minecraft:item"}],"rolls":1,"conditions":[{"properties":{"age":"7"},"condition":"minecraft:block_state_property","block":"herbcraft:rainbow_crop"}]},{"entries":[{"name":"herbcraft:rainbow_herb","type":"minecraft:item"}],"rolls":1}],"type":"minecraft:block"}

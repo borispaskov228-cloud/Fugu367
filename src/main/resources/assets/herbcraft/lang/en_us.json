@@ -1,0 +1,45 @@
+{
+  "itemGroup.herbcraft": "HerbCraft — Herbs & Vapes",
+
+  "block.herbcraft.green_crop": "Green Herb Crop",
+  "block.herbcraft.golden_crop": "Golden Herb Crop",
+  "block.herbcraft.blue_crop": "Blue Herb Crop",
+  "block.herbcraft.purple_crop": "Purple Herb Crop",
+  "block.herbcraft.rainbow_crop": "Rainbow Herb Crop",
+
+  "block.herbcraft.green_wild": "Wild Green Herb",
+  "block.herbcraft.golden_wild": "Wild Golden Herb",
+  "block.herbcraft.blue_wild": "Wild Blue Herb",
+  "block.herbcraft.purple_wild": "Wild Purple Herb",
+  "block.herbcraft.rainbow_wild": "Wild Rainbow Herb",
+
+  "item.herbcraft.green_wild": "Wild Green Herb (block)",
+  "item.herbcraft.golden_wild": "Wild Golden Herb (block)",
+  "item.herbcraft.blue_wild": "Wild Blue Herb (block)",
+  "item.herbcraft.purple_wild": "Wild Purple Herb (block)",
+  "item.herbcraft.rainbow_wild": "Wild Rainbow Herb (block)",
+
+  "item.herbcraft.green_herb": "Green Herb",
+  "item.herbcraft.golden_herb": "Golden Herb",
+  "item.herbcraft.blue_herb": "Blue Herb",
+  "item.herbcraft.purple_herb": "Purple Herb",
+  "item.herbcraft.rainbow_herb": "Rainbow Herb",
+
+  "item.herbcraft.green_joint": "Green Herb Joint",
+  "item.herbcraft.golden_joint": "Golden Herb Joint",
+  "item.herbcraft.blue_joint": "Blue Herb Joint",
+  "item.herbcraft.purple_joint": "Purple Herb Joint",
+  "item.herbcraft.rainbow_joint": "Rainbow Herb Joint",
+
+  "item.herbcraft.green_liquid": "Green Vape Liquid",
+  "item.herbcraft.golden_liquid": "Golden Vape Liquid",
+  "item.herbcraft.blue_liquid": "Blue Vape Liquid",
+  "item.herbcraft.purple_liquid": "Purple Vape Liquid",
+  "item.herbcraft.rainbow_liquid": "Rainbow Vape Liquid",
+
+  "item.herbcraft.green_ecig": "Green E-Cigarette",
+  "item.herbcraft.golden_ecig": "Golden E-Cigarette",
+  "item.herbcraft.blue_ecig": "Blue E-Cigarette",
+  "item.herbcraft.purple_ecig": "Purple E-Cigarette",
+  "item.herbcraft.rainbow_ecig": "Rainbow E-Cigarette"
+}

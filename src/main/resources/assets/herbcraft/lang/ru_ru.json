@@ -1,0 +1,45 @@
+{
+  "itemGroup.herbcraft": "HerbCraft — Трава и Вэйпы",
+
+  "block.herbcraft.green_crop": "Культура: Зелёная трава",
+  "block.herbcraft.golden_crop": "Культура: Золотая трава",
+  "block.herbcraft.blue_crop": "Культура: Синяя трава",
+  "block.herbcraft.purple_crop": "Культура: Фиолетовая трава",
+  "block.herbcraft.rainbow_crop": "Культура: Радужная трава",
+
+  "block.herbcraft.green_wild": "Дикая Зелёная трава",
+  "block.herbcraft.golden_wild": "Дикая Золотая трава",
+  "block.herbcraft.blue_wild": "Дикая Синяя трава",
+  "block.herbcraft.purple_wild": "Дикая Фиолетовая трава",
+  "block.herbcraft.rainbow_wild": "Дикая Радужная трава",
+
+  "item.herbcraft.green_wild": "Дикая Зелёная трава (куст)",
+  "item.herbcraft.golden_wild": "Дикая Золотая трава (куст)",
+  "item.herbcraft.blue_wild": "Дикая Синяя трава (куст)",
+  "item.herbcraft.purple_wild": "Дикая Фиолетовая трава (куст)",
+  "item.herbcraft.rainbow_wild": "Дикая Радужная трава (куст)",
+
+  "item.herbcraft.green_herb": "Зелёная трава",
+  "item.herbcraft.golden_herb": "Золотая трава",
+  "item.herbcraft.blue_herb": "Синяя трава",
+  "item.herbcraft.purple_herb": "Фиолетовая трава",
+  "item.herbcraft.rainbow_herb": "Радужная трава",
+
+  "item.herbcraft.green_joint": "Скрутка из Зелёной травы",
+  "item.herbcraft.golden_joint": "Скрутка из Золотой травы",
+  "item.herbcraft.blue_joint": "Скрутка из Синей травы",
+  "item.herbcraft.purple_joint": "Скрутка из Фиолетовой травы",
+  "item.herbcraft.rainbow_joint": "Скрутка из Радужной травы",
+
+  "item.herbcraft.green_liquid": "Жидкость (Зелёная)",
+  "item.herbcraft.golden_liquid": "Жидкость (Золотая)",
+  "item.herbcraft.blue_liquid": "Жидкость (Синяя)",
+  "item.herbcraft.purple_liquid": "Жидкость (Фиолетовая)",
+  "item.herbcraft.rainbow_liquid": "Жидкость (Радужная)",
+
+  "item.herbcraft.green_ecig": "Вэйп — Зелёная",
+  "item.herbcraft.golden_ecig": "Вэйп — Золотая",
+  "item.herbcraft.blue_ecig": "Вэйп — Синяя",
+  "item.herbcraft.purple_ecig": "Вэйп — Фиолетовая",
+  "item.herbcraft.rainbow_ecig": "Вэйп — Радужная"
+}
