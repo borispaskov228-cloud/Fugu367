@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "gestalmancy",
+  "version": "${version}",
+  "name": "Gestalmancy — магия жестов",
+  "description": "Заклинания создаются последовательностью действий (присесть, прыжок, влево/вправо). Игроки могут отдавать ману одному чародею, усиливая его заклинание.",
+  "authors": [ "Fugu367" ],
+  "contact": {},
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [ "com.gestalmancy.Gestalmancy" ],
+    "client": [ "com.gestalmancy.client.GestalmancyClient" ]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}

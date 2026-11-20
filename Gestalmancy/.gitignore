@@ -1,0 +1,32 @@
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and builds
+.gradle/
+node_modules/
+dist/
+build/
+out/
+bin/
+obj/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Logs and temp
+*.log
+tmp/
+temp/
