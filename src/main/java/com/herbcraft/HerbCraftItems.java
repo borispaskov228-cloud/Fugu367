@@ -9,12 +9,13 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 import java.util.EnumMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 
 public class HerbCraftItems {
     /** Высушенная трава — она же семена для грядки. */
     public static final Map<HerbType, Item> HERBS = new EnumMap<>(HerbType.class);
-    /** Скрутки (odjoint). */
+    /** Скрутки. */
     public static final Map<HerbType, Item> JOINTS = new EnumMap<>(HerbType.class);
     /** Жидкость для вэйпа. */
     public static final Map<HerbType, Item> LIQUIDS = new EnumMap<>(HerbType.class);
@@ -23,10 +24,15 @@ public class HerbCraftItems {
     /** Дикие кусты (для креатива). */
     public static final Map<HerbType, Item> WILD_ITEMS = new EnumMap<>(HerbType.class);
 
+    /** O(1) поиск по объекту предмета (используется котлом). */
+    private static final Map<Item, HerbType> HERB_BY_ITEM = new IdentityHashMap<>();
+
     public static void register() {
         for (HerbType type : HerbType.values()) {
-            HERBS.put(type, register(type.id + "_herb",
-                    new BlockItem(HerbCraftBlocks.CROPS.get(type), new Item.Settings())));
+            Item herb = register(type.id + "_herb",
+                    new BlockItem(HerbCraftBlocks.CROPS.get(type), new Item.Settings()));
+            HERBS.put(type, herb);
+            HERB_BY_ITEM.put(herb, type);
             JOINTS.put(type, register(type.id + "_joint", new JointItem(type)));
             LIQUIDS.put(type, register(type.id + "_liquid", new LiquidItem(type)));
             ECIGS.put(type, register(type.id + "_ecig", new EcigItem(type)));
@@ -40,9 +46,6 @@ public class HerbCraftItems {
     }
 
     public static HerbType getHerbType(Item item) {
-        for (Map.Entry<HerbType, Item> entry : HERBS.entrySet()) {
-            if (entry.getValue() == item) return entry.getKey();
-        }
-        return null;
+        return HERB_BY_ITEM.get(item);
     }
 }

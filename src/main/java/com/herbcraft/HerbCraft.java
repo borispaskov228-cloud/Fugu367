@@ -15,6 +15,7 @@ public class HerbCraft implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        HerbCraftConfig.load();
         HerbCraftBlocks.register();
         HerbCraftItems.register();
         HerbCraftGroups.register();

@@ -1,60 +1,87 @@
 package com.herbcraft;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.world.Heightmap;
-import net.minecraft.world.World;
-import net.minecraft.world.chunk.WorldChunk;
+import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
+import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
+import net.fabricmc.fabric.api.event.registry.DynamicRegistrySetupCallback;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.util.Identifier;
+import net.minecraft.world.gen.GenerationStep;
+import net.minecraft.world.gen.feature.ConfiguredFeature;
+import net.minecraft.world.gen.feature.Feature;
+import net.minecraft.world.gen.feature.PlacedFeature;
+import net.minecraft.world.gen.feature.PlacedFeatures;
+import net.minecraft.world.gen.feature.RandomPatchFeatureConfig;
+import net.minecraft.world.gen.feature.SimpleBlockFeatureConfig;
+import net.minecraft.world.gen.placementmodifier.BiomePlacementModifier;
+import net.minecraft.world.gen.placementmodifier.RarityFilterPlacementModifier;
+import net.minecraft.world.gen.placementmodifier.SquarePlacementModifier;
+import net.minecraft.world.gen.stateprovider.BlockStateProvider;
+
+import java.util.List;
 
 /**
- * Распространение диких трав по оверворду.
- *
- * Оптимизация: работаем напрямую с чанком и его хэйтмапом, не дёргая
- * серверный мир для поиска поверхности. На чанк — 3 попытки и дешёвые
- * проверки блока; обновление блока идёт без лишних соседних оповещений.
+ * Генерация диких трав через обычный worldgen-фичу.
+ * ВАЖНО: не трогаем мир во время загрузки чанков — это вызывало зависание
+ * создания мира. Всё регистрируется в динамических реестрах 1.20.1.
  */
 public class HerbWorldGen {
-    private static final int ATTEMPTS_PER_CHUNK = 3;
-
     public static void register() {
-        ServerChunkEvents.CHUNK_LOAD.register(HerbWorldGen::onChunkLoad);
-    }
+        if (!HerbCraftConfig.generateWildHerbs()) {
+            HerbCraft.LOGGER.info("[HerbCraft] Генерация диких трав отключена в конфиге");
+            return;
+        }
 
-    private static void onChunkLoad(ServerWorld world, WorldChunk chunk) {
-        if (world.getRegistryKey() != World.OVERWORLD) return;
+        DynamicRegistrySetupCallback.EVENT.register(view -> {
+            Registry<ConfiguredFeature<?, ?>> configured =
+                    view.getOptional(RegistryKeys.CONFIGURED_FEATURE).orElse(null);
+            Registry<PlacedFeature> placed =
+                    view.getOptional(RegistryKeys.PLACED_FEATURE).orElse(null);
+            if (configured == null || placed == null) return;
 
-        ChunkPos chunkPos = chunk.getPos();
-        long seed = ((long) chunkPos.x * 73856093L) ^ ((long) chunkPos.z * 19349663L);
-        Random random = Random.create(seed);
+            for (HerbType type : HerbType.values()) {
+                String path = type.id + "_wild";
 
-        Heightmap heightmap = chunk.getHeightmap(Heightmap.Type.WORLD_SURFACE);
-        if (heightmap == null) return;
+                ConfiguredFeature<?, ?> single = Registry.register(
+                        configured,
+                        HerbCraft.id("single_" + path),
+                        new ConfiguredFeature<>(Feature.SIMPLE_BLOCK,
+                                new SimpleBlockFeatureConfig(BlockStateProvider.of(
+                                        HerbCraftBlocks.WILD.get(type).getDefaultState()))));
 
-        int startX = chunkPos.getStartX();
-        int startZ = chunkPos.getStartZ();
+                PlacedFeature singlePlaced = Registry.register(
+                        placed,
+                        HerbCraft.id("single_" + path + "_placed"),
+                        new PlacedFeature(RegistryEntry.of(single), List.of()));
 
-        for (int attempt = 0; attempt < ATTEMPTS_PER_CHUNK; attempt++) {
-            int localX = random.nextInt(16);
-            int localZ = random.nextInt(16);
-            int y = heightmap.get(localX, localZ) - 1;
-            if (y <= world.getBottomY()) continue;
+                ConfiguredFeature<?, ?> patch = Registry.register(
+                        configured,
+                        HerbCraft.id("patch_" + path),
+                        new ConfiguredFeature<>(Feature.FLOWER,
+                                new RandomPatchFeatureConfig(12, 5, 2,
+                                        RegistryEntry.of(singlePlaced))));
 
-            int x = startX + localX;
-            int z = startZ + localZ;
-            BlockPos ground = new BlockPos(x, y, z);
-            BlockPos above = ground.up();
+                Identifier placedId = HerbCraft.id("patch_" + path + "_placed");
+                Registry.register(
+                        placed,
+                        placedId,
+                        new PlacedFeature(RegistryEntry.of(patch), List.of(
+                                RarityFilterPlacementModifier.of(16),
+                                SquarePlacementModifier.of(),
+                                PlacedFeatures.MOTION_BLOCKING_HEIGHTMAP,
+                                BiomePlacementModifier.of())));
+            }
+        });
 
-            if (!chunk.getBlockState(ground).isOf(Blocks.GRASS_BLOCK)) continue;
-            if (!chunk.getBlockState(above).isAir()) continue;
-
-            HerbType type = HerbType.values()[random.nextInt(HerbType.values().length)];
-            world.setBlockState(above, HerbCraftBlocks.WILD.get(type).getDefaultState(),
-                    Block.NOTIFY_LISTENERS);
+        // Привязываем фичи к биомам один раз, на этапе инициализации мода.
+        for (HerbType type : HerbType.values()) {
+            BiomeModifications.addFeature(
+                    BiomeSelectors.foundInOverworld(),
+                    GenerationStep.Feature.VEGETAL_DECORATION,
+                    RegistryKey.of(RegistryKeys.PLACED_FEATURE,
+                            HerbCraft.id("patch_" + type.id + "_wild_placed")));
         }
     }
 }
