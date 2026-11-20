@@ -1,5 +1,5 @@
-# Генерирует модели, блокстейты, крафты, лут-таблицы и чистые 16x16 текстуры.
-# Текстуры без чёрных контуров: базовый цвет + светлый блик + мягкий цветной оттенок.
+# Генерирует модели, блокстейты, крафты, лут-таблицы и 16x16 текстуры в стиле ванили.
+# Текстуры рисуются попиксельно: несколько оттенков, лепестки, листья, блики.
 # Запуск: powershell -ExecutionPolicy Bypass -File tools\generate_assets.ps1
 Add-Type -AssemblyName System.Drawing
 
@@ -24,129 +24,217 @@ function Write-Text([string]$path, [string]$text) {
     [System.IO.File]::WriteAllText($path, $text, $utf8)
 }
 
+# --- Попиксельные примитивы ---
+
+function Px($bmp, [int]$x, [int]$y, $c) {
+    if ($x -ge 0 -and $x -lt 16 -and $y -ge 0 -and $y -lt 16) { $bmp.SetPixel($x, $y, $c) }
+}
+
+function Box($bmp, [int]$x, [int]$y, [int]$w, [int]$h, $c) {
+    for ($i = $x; $i -lt $x + $w; $i++) { for ($j = $y; $j -lt $y + $h; $j++) { Px $bmp $i $j $c } }
+}
+
+function Ell($bmp, [int]$cx, [int]$cy, [int]$rx, [int]$ry, $c) {
+    if ($rx -le 0 -or $ry -le 0) { return }
+    for ($y = $cy - $ry; $y -le $cy + $ry; $y++) {
+        for ($x = $cx - $rx; $x -le $cx + $rx; $x++) {
+            $dx = ($x - $cx) / $rx
+            $dy = ($y - $cy) / $ry
+            if ($dx * $dx + $dy * $dy -le 1.0001) { Px $bmp $x $y $c }
+        }
+    }
+}
+
+# Оттенок: $k > 0 — осветлить к белому, $k < 0 — затемнить к чёрному.
+function Shade([string]$hex, [double]$k) {
+    $r = [Convert]::ToInt32($hex.Substring(0,2),16)
+    $g = [Convert]::ToInt32($hex.Substring(2,2),16)
+    $b = [Convert]::ToInt32($hex.Substring(4,2),16)
+    if ($k -ge 0) {
+        $r = [int]($r + (255 - $r) * $k); $g = [int]($g + (255 - $g) * $k); $b = [int]($b + (255 - $b) * $k)
+    } else {
+        $r = [int]($r * (1 + $k)); $g = [int]($g * (1 + $k)); $b = [int]($b * (1 + $k))
+    }
+    return [System.Drawing.Color]::FromArgb($r, $g, $b)
+}
+
 function New-Texture([string]$path, [scriptblock]$draw) {
     $bmp = New-Object System.Drawing.Bitmap 16, 16
-    $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.Clear([System.Drawing.Color]::Transparent)
-    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
-    & $draw $g
+    & $draw $bmp
     $dir = Split-Path -Parent $path
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
     $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
-    $g.Dispose()
     $bmp.Dispose()
 }
 
-# Смешивание канала с белым (блик) или чёрным (мягкий оттенок, не контур).
-function Mix([int]$c, [int]$target, [double]$w) { [int]($c + ($target - $c) * $w) }
+# Три оттенка листа: тёмный низ, основной, светлый верх.
+function Leaf($bmp, [int]$cx, [int]$cy, [int]$rx, [int]$ry, $pal) {
+    Ell $bmp $cx $cy $rx $ry $pal.ld
+    Ell $bmp $cx ($cy - 1) $rx $ry $pal.lm
+    Ell $bmp $cx ($cy - 2) ([math]::Max(1, $rx - 1)) ([math]::Max(1, $ry - 1)) $pal.ll
+}
+
+# Бутон из трёх лепестков.
+function Bud($bmp, [int]$cx, [int]$cy, $hexes, $pal) {
+    $h0 = Shade $hexes[0] 0
+    $l0 = Shade $hexes[0] 0.35
+    $h1 = Shade $hexes[1] 0
+    $h2 = Shade $hexes[2] 0
+    Box $bmp ($cx - 1) ($cy - 3) 2 3 $h0
+    Box $bmp ($cx - 1) ($cy - 3) 2 1 $l0
+    Box $bmp ($cx - 3) ($cy - 1) 3 2 $h1
+    Box $bmp ($cx) ($cy - 1) 3 2 $h2
+    Box $bmp ($cx - 1) ($cy - 1) 2 2 $pal.core
+    Px $bmp ($cx - 1) ($cy - 1) $pal.coreLight
+}
+
+# Полноценный цветок: пять лепестков с затенением + сердина.
+function Bloom($bmp, [int]$cx, [int]$cy, $hexes, $pal) {
+    $petals = @(
+        [pscustomobject]@{ X = $cx;     Y = $cy - 3; RX = 2; RY = 2 },
+        [pscustomobject]@{ X = $cx - 3; Y = $cy;     RX = 2; RY = 2 },
+        [pscustomobject]@{ X = $cx + 3; Y = $cy;     RX = 2; RY = 2 },
+        [pscustomobject]@{ X = $cx - 2; Y = $cy + 2; RX = 2; RY = 2 },
+        [pscustomobject]@{ X = $cx + 2; Y = $cy + 2; RX = 2; RY = 2 }
+    )
+    for ($i = 0; $i -lt $petals.Count; $i++) {
+        $p = $petals[$i]
+        $hx = $hexes[$i % $hexes.Count]
+        $m = Shade $hx 0
+        $l = Shade $hx 0.35
+        $d = Shade $hx -0.30
+        Ell $bmp $p.X $p.Y $p.RX $p.RY $d
+        Ell $bmp $p.X ($p.Y - 1) $p.RX $p.RY $m
+        Ell $bmp $p.X ($p.Y - 2) ([math]::Max(1, $p.RX - 1)) ([math]::Max(1, $p.RY - 1)) $l
+    }
+    Box $bmp ($cx - 1) ($cy - 1) 2 2 $pal.core
+    Px $bmp ($cx - 1) ($cy - 1) $pal.coreLight
+}
+
+# Растение целиком. $stage: 0-3 — стадии грядки, 4 — дикий куст.
+function Plant($bmp, $pal, [int]$stage) {
+    $hexes = $pal.petals
+    $top = 12; $height = 4
+    if ($stage -eq 1) { $top = 9; $height = 7 }
+    if ($stage -eq 2) { $top = 7; $height = 9 }
+    if ($stage -eq 3) { $top = 6; $height = 10 }
+    if ($stage -eq 4) { $top = 5; $height = 11 }
+
+    # Стебель: тёмная левая грань и светлая правая.
+    Box $bmp 7 $top 1 ($height + 1) $pal.sd
+    Box $bmp 8 $top 1 ($height + 1) $pal.sm
+    Box $bmp 8 $top 1 2 $pal.sl
+
+    if ($stage -eq 0) {
+        Leaf $bmp 5 13 2 1 $pal
+        Leaf $bmp 11 13 2 1 $pal
+        Box $bmp 7 11 2 2 $pal.ll
+        return
+    }
+
+    Leaf $bmp 4 12 3 2 $pal
+    Leaf $bmp 12 11 3 2 $pal
+    if ($stage -ge 2) { Leaf $bmp 4 9 2 1 $pal }
+    if ($stage -ge 4) { Leaf $bmp 12 8 2 1 $pal }
+
+    if ($stage -eq 1) { Bud $bmp 8 ($top - 1) $hexes $pal }
+    elseif ($stage -eq 2) { Bud $bmp 8 ($top - 1) $hexes $pal }
+    else { Bloom $bmp 8 ($top - 1) $hexes $pal }
+}
 
 foreach ($t in $types) {
     $id = $t.id
     $hex = $t.hex
-    $r = [Convert]::ToInt32($hex.Substring(0,2),16)
-    $g8 = [Convert]::ToInt32($hex.Substring(2,2),16)
-    $b = [Convert]::ToInt32($hex.Substring(4,2),16)
 
-    $col   = [System.Drawing.Color]::FromArgb($r, $g8, $b)
-    $light = [System.Drawing.Color]::FromArgb((Mix $r 255 0.45), (Mix $g8 255 0.45), (Mix $b 255 0.45))
-    $shade = [System.Drawing.Color]::FromArgb((Mix $r 0 0.22), (Mix $g8 0 0.22), (Mix $b 0 0.22))
+    if ($id -eq 'rainbow') {
+        $petals = @('FF6B6B','FFB347','FFE14D','63D16B','5B9BFF','B76BFF')
+    } else {
+        $petals = @($hex, $hex, $hex, $hex, $hex)
+    }
+    $coreHex = if ($id -eq 'golden') { '8A5A2B' } elseif ($id -eq 'rainbow') { 'FFFFFF' } else { 'F2C14E' }
+    $pal = @{
+        petals = $petals
+        core = Shade $coreHex 0
+        coreLight = Shade $coreHex 0.4
+        ll = Shade $hex 0.35
+        lm = Shade $hex 0
+        ld = Shade $hex -0.32
+        sd = [System.Drawing.Color]::FromArgb(52,108,42)
+        sm = [System.Drawing.Color]::FromArgb(76,150,58)
+        sl = [System.Drawing.Color]::FromArgb(110,186,82)
+    }
+    $paper = @{ l = [System.Drawing.Color]::FromArgb(240,228,198); m = [System.Drawing.Color]::FromArgb(220,203,168); d = [System.Drawing.Color]::FromArgb(188,168,132) }
+    $glass = @{ l = [System.Drawing.Color]::FromArgb(210,226,236); m = [System.Drawing.Color]::FromArgb(148,172,188); d = [System.Drawing.Color]::FromArgb(104,128,146) }
+    $metal = @{ l = [System.Drawing.Color]::FromArgb(238,242,246); m = [System.Drawing.Color]::FromArgb(202,210,219); d = [System.Drawing.Color]::FromArgb(150,160,172) }
 
-    $brush = New-Object System.Drawing.SolidBrush $col
-    $lightBrush = New-Object System.Drawing.SolidBrush $light
-    $shadeBrush = New-Object System.Drawing.SolidBrush $shade
-
-    $stemBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(78,150,60))
-    $stemLight = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(112,188,86))
-    $whiteBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(250,250,246))
-    $paperBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(224,207,172))
-    $glassBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(148,170,186))
-    $glassLight = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(208,224,234))
-    $metalBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(202,209,218))
-    $metalLight = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(236,240,244))
-
-    # --- Высушенная трава (семена): рыхлый пучок листьев со светлыми бликами ---
+    # --- Высушенная трава: аккуратная кучка листьев ---
     New-Texture (Join-Path $assets "textures\item\${id}_herb.png") {
-        param($g)
-        $g.FillEllipse($shadeBrush, 4, 4, 7, 5)
-        $g.FillEllipse($brush, 3, 3, 7, 5)
-        $g.FillEllipse($brush, 7, 2, 6, 6)
-        $g.FillEllipse($brush, 4, 7, 6, 5)
-        $g.FillEllipse($lightBrush, 5, 3, 3, 2)
-        $g.FillEllipse($lightBrush, 8, 3, 2, 2)
-        $g.FillRectangle($stemBrush, 7, 9, 2, 5)
+        param($bmp)
+        Leaf $bmp 5 9 3 2 $pal
+        Leaf $bmp 11 8 3 2 $pal
+        Leaf $bmp 8 12 3 2 $pal
+        Box $bmp 7 13 2 2 $pal.sd
+        Px $bmp 5 8 $pal.ll; Px $bmp 11 7 $pal.ll
     }
 
-    # --- Скрутка: бумага с lighter-полоской, цветной кончик, тлеющий уголёк ---
+    # --- Скрутка: бумага с затенением, цветной кончик, уголёк ---
     New-Texture (Join-Path $assets "textures\item\${id}_joint.png") {
-        param($g)
-        $g.FillRectangle($paperBrush, 3, 6, 10, 4)
-        $g.FillRectangle($whiteBrush, 3, 6, 10, 1)
-        $g.FillRectangle($brush, 11, 6, 3, 4)
-        $g.FillRectangle($lightBrush, 12, 6, 1, 4)
-        $g.FillRectangle([System.Drawing.Brushes]::Orange, 2, 7, 1, 2)
-        $g.FillRectangle([System.Drawing.Brushes]::Yellow, 2, 7, 1, 1)
+        param($bmp)
+        Box $bmp 3 6 11 4 $paper.m
+        Box $bmp 3 6 11 1 $paper.l
+        Box $bmp 3 9 11 1 $paper.d
+        Box $bmp 6 6 1 4 $paper.d
+        Box $bmp 11 6 3 4 $pal.lm
+        Box $bmp 11 6 3 1 $pal.ll
+        Box $bmp 2 7 1 2 ([System.Drawing.Color]::FromArgb(244,140,42))
+        Px $bmp 2 7 ([System.Drawing.Color]::FromArgb(255,214,90))
     }
 
-    # --- Жидкость: стеклянный флакон с цветной жидкостью и бликом ---
+    # --- Жидкость: стеклянный флакон с бликами и пузырьками ---
     New-Texture (Join-Path $assets "textures\item\${id}_liquid.png") {
-        param($g)
-        $g.FillRectangle($metalBrush, 6, 1, 4, 2)
-        $g.FillRectangle($metalLight, 6, 1, 4, 1)
-        $g.FillRectangle($glassBrush, 6, 3, 4, 2)
-        $g.FillRectangle($glassBrush, 4, 5, 8, 10)
-        $g.FillRectangle($glassLight, 4, 5, 2, 10)
-        $g.FillRectangle($brush, 5, 8, 6, 6)
-        $g.FillRectangle($lightBrush, 5, 8, 6, 1)
-        $g.FillRectangle($whiteBrush, 10, 6, 1, 4)
+        param($bmp)
+        Box $bmp 6 1 4 2 $metal.m
+        Box $bmp 6 1 4 1 $metal.l
+        Box $bmp 6 3 4 2 $glass.d
+        Box $bmp 4 5 8 10 $glass.m
+        Box $bmp 4 5 2 10 $glass.l
+        Box $bmp 11 5 1 10 $glass.d
+        Box $bmp 5 8 6 6 $pal.lm
+        Box $bmp 5 8 6 1 $pal.ll
+        Box $bmp 5 8 1 6 $pal.ll
+        Px $bmp 7 11 $pal.ll; Px $bmp 9 13 $pal.ll
+        Box $bmp 10 6 1 3 ([System.Drawing.Color]::FromArgb(255,255,255))
     }
 
-    # --- Вэйп: металлический корпус, цветное окошко, светодиод и кнопка ---
+    # --- Вэйп: корпус с градацией, окошко, светодиод, кнопка ---
     New-Texture (Join-Path $assets "textures\item\${id}_ecig.png") {
-        param($g)
-        $g.FillRectangle($whiteBrush, 6, 0, 4, 3)
-        $g.FillRectangle($metalBrush, 5, 3, 6, 11)
-        $g.FillRectangle($metalLight, 5, 3, 2, 11)
-        $g.FillRectangle($brush, 6, 5, 4, 5)
-        $g.FillRectangle($lightBrush, 6, 5, 4, 1)
-        $g.FillRectangle([System.Drawing.Brushes]::Lime, 7, 2, 2, 1)
-        $g.FillRectangle($glassBrush, 7, 11, 2, 2)
+        param($bmp)
+        Box $bmp 6 0 4 3 $metal.l
+        Box $bmp 9 1 1 2 $metal.d
+        Box $bmp 5 3 6 11 $metal.m
+        Box $bmp 5 3 2 11 $metal.l
+        Box $bmp 10 3 1 11 $metal.d
+        Box $bmp 6 5 4 5 $pal.lm
+        Box $bmp 6 5 4 1 $pal.ll
+        Box $bmp 6 5 1 5 $pal.ll
+        Box $bmp 7 2 2 1 ([System.Drawing.Color]::FromArgb(120,235,90))
+        Box $bmp 7 11 2 2 $metal.d
+        Px $bmp 7 11 $metal.l
     }
 
-    # --- Дикий куст: зелёный стебель и яркие листья с бликами ---
+    # --- Дикий куст ---
     New-Texture (Join-Path $assets "textures\block\${id}_wild.png") {
-        param($g)
-        $g.FillRectangle($stemBrush, 7, 6, 2, 10)
-        $g.FillRectangle($stemLight, 7, 6, 1, 10)
-        $g.FillEllipse($shadeBrush, 3, 3, 7, 6)
-        $g.FillEllipse($brush, 2, 3, 7, 6)
-        $g.FillEllipse($brush, 7, 2, 6, 6)
-        $g.FillEllipse($brush, 2, 8, 6, 5)
-        $g.FillEllipse($lightBrush, 4, 4, 3, 2)
-        $g.FillEllipse($lightBrush, 8, 3, 2, 2)
-    }
+        param($bmp)
+        Plant $bmp $pal 4
+    }.GetNewClosure()
 
-    # --- Четыре стадии роста: стебель + листья, блик на старших стадиях ---
+    # --- Четыре стадии роста ---
     for ($stage = 0; $stage -le 3; $stage++) {
-        $h = 3 + $stage * 3
-        $top = [math]::Max(3, 15 - $h)
         New-Texture (Join-Path $assets "textures\block\${id}_crop_${stage}.png") {
-            param($gg)
-            $gg.FillRectangle($stemBrush, 7, $top, 2, $h)
-            $gg.FillRectangle($stemLight, 7, $top, 1, $h)
-            $gg.FillEllipse($shadeBrush, 5, [math]::Max(2,13-$h), 6, 4)
-            $gg.FillEllipse($brush, 4, [math]::Max(2,13-$h), 6, 4)
-            if ($stage -ge 1) { $gg.FillEllipse($brush, 8, [math]::Max(1,11-$h), 5, 4) }
-            if ($stage -ge 2) { $gg.FillEllipse($brush, 2, [math]::Max(4,12-$h), 5, 4) }
-            if ($stage -ge 3) {
-                $gg.FillEllipse($brush, 9, [math]::Max(5,14-$h), 4, 3)
-                $gg.FillEllipse($lightBrush, 5, [math]::Max(2,13-$h), 2, 1)
-            }
+            param($bmp)
+            Plant $bmp $pal $stage
         }.GetNewClosure()
     }
-
-    $brush.Dispose(); $lightBrush.Dispose(); $shadeBrush.Dispose()
-    $stemBrush.Dispose(); $stemLight.Dispose(); $whiteBrush.Dispose(); $paperBrush.Dispose()
-    $glassBrush.Dispose(); $glassLight.Dispose(); $metalBrush.Dispose(); $metalLight.Dispose()
 
     # --- Модели предметов ---
     foreach ($what in @('herb','joint','liquid','ecig')) {

@@ -60,7 +60,7 @@ public class HerbWorldGen {
                         configured,
                         HerbCraft.id("patch_" + path),
                         new ConfiguredFeature<>(Feature.FLOWER,
-                                new RandomPatchFeatureConfig(12, 5, 2,
+                                new RandomPatchFeatureConfig(9, 5, 2,
                                         RegistryEntry.of(singlePlaced))));
 
                 Identifier placedId = HerbCraft.id("patch_" + path + "_placed");
@@ -68,7 +68,7 @@ public class HerbWorldGen {
                         placed,
                         placedId,
                         new PlacedFeature(RegistryEntry.of(patch), List.of(
-                                RarityFilterPlacementModifier.of(16),
+                                RarityFilterPlacementModifier.of(32),
                                 SquarePlacementModifier.of(),
                                 PlacedFeatures.MOTION_BLOCKING_HEIGHTMAP,
                                 BiomePlacementModifier.of())));

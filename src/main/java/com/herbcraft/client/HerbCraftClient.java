@@ -1,12 +1,15 @@
 package com.herbcraft.client;
 
+import com.herbcraft.HerbCraftBlocks;
 import com.herbcraft.HerbCraftEffects;
 import com.herbcraft.HerbType;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.RenderLayer;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -24,6 +27,12 @@ public class HerbCraftClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // Критично: без cutout прозрачные участки текстур блоков рисуются чёрным.
+        for (HerbType type : HerbType.values()) {
+            BlockRenderLayerMap.INSTANCE.putBlock(HerbCraftBlocks.CROPS.get(type), RenderLayer.getCutout());
+            BlockRenderLayerMap.INSTANCE.putBlock(HerbCraftBlocks.WILD.get(type), RenderLayer.getCutout());
+        }
+
         ClientPlayNetworking.registerGlobalReceiver(HerbCraftEffects.EFFECT_PACKET,
                 (client, handler, buf, responseSender) -> {
                     int ordinal = buf.readVarInt();
